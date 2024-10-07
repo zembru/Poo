@@ -1,0 +1,137 @@
+
+import pandas as pd
+import os
+def carregar_produtos():
+    if os.path.exists('produtos.csv'):
+        df_produtos = pd.read_csv('produtos.csv')
+        produtos = {
+            row['codigo']: {'codigo': row['codigo'], 'nome': row['nome'], 'quantidade': row['quantidade'], 'preco': row['preco']}
+            for _, row in df_produtos.iterrows()
+        }
+    else:
+        produtos_iniciais = [
+            ('001', 'Produto A', 10, 20.0),
+            ('002', 'Produto B', 5, 15.5),
+            ('003', 'Produto C', 0, 30.0)
+        ]
+        produtos = {codigo: {'codigo': codigo, 'nome': nome, 'quantidade': quantidade, 'preco': preco}
+                    for codigo, nome, quantidade, preco in produtos_iniciais}
+    return produtos
+
+
+def carregar_vendas():
+    if os.path.exists('vendas.csv'):
+        df_vendas = pd.read_csv('vendas.csv')
+        vendas = df_vendas.to_dict(orient='records')
+    else:
+        vendas = []
+    return vendas
+
+
+def salvar_produtos(produtos):
+    df_produtos = pd.DataFrame(produtos.values())
+    df_produtos.to_csv('produtos.csv', index=False)
+
+def salvar_vendas(vendas):
+    df_vendas = pd.DataFrame(vendas)
+    df_vendas.to_csv('vendas.csv', index=False)
+
+
+def cadastrar_produto(produtos, codigo, nome, quantidade, preco):
+    if codigo in produtos:
+        return produtos, "Produto já cadastrado!"
+    if quantidade < 0 or preco < 0:
+        return produtos, "Quantidade e preço devem ser não negativos."
+    
+    novo_produto = {'codigo': codigo, 'nome': nome, 'quantidade': quantidade, 'preco': preco}
+    produtos[codigo] = novo_produto
+    salvar_produtos(produtos)
+    return produtos, "Produto cadastrado com sucesso!"
+
+
+def registrar_venda(produtos, vendas):
+    codigo = input("Digite o código do produto para venda: ")
+    if codigo not in produtos:
+        return produtos, vendas, "Produto não encontrado!"
+
+    produto = produtos[codigo]
+    try:
+        quantidade_vendida = int(input("Digite a quantidade vendida: "))
+        if quantidade_vendida <= 0:
+            return produtos, vendas, "A quantidade vendida deve ser positiva."
+
+        if produto['quantidade'] < quantidade_vendida:
+            return produtos, vendas, "Quantidade insuficiente em estoque!"
+
+        produto['quantidade'] -= quantidade_vendida
+        valor_total = quantidade_vendida * produto['preco']
+        venda = {'codigo': codigo, 'nome': produto['nome'], 'quantidade': quantidade_vendida, 'valor_total': valor_total}
+        vendas.append(venda)
+        salvar_vendas(vendas)
+        salvar_produtos(produtos)
+        return produtos, vendas, "Venda registrada com sucesso!"
+    except ValueError:
+        return produtos, vendas, "Entrada inválida! Por favor, insira um número inteiro para a quantidade."
+
+
+def gerar_relatorio_vendas(vendas, arquivo):
+    df_vendas = pd.DataFrame(vendas)
+    df_vendas.to_csv(arquivo, index=False)
+    return f"Relatório de vendas gerado: {arquivo}"
+
+
+def gerar_relatorio_estoque(produtos, arquivo):
+    with open(arquivo, mode='w') as file:
+        file.write("Relatório de Estoque\n")
+        file.write("Código do Produto, Nome do Produto, Quantidade em Estoque\n")
+        for produto in produtos.values():
+            file.write(f"{produto['codigo']}, {produto['nome']}, {produto['quantidade']}\n")
+    return f"Relatório de estoque gerado: {arquivo}"
+
+
+def mostrar_produtos(produtos):
+    return "\n".join([f"{p['codigo']}: {p['nome']} - {p['quantidade']} em estoque" for p in produtos.values()]) or "Nenhum produto cadastrado."
+
+if __name__ == "__main__":
+    produtos = carregar_produtos()
+    vendas = carregar_vendas()
+
+    while True:
+        print("\nSistema de Gerenciamento de Produtos")
+        print("1. Cadastrar Produto")
+        print("2. Registrar Venda")
+        print("3. Gerar Relatório de Vendas")
+        print("4. Gerar Relatório de Estoque")
+        print("5. Mostrar Produtos")
+        print("6. Sair")
+
+        opcao = input("Escolha uma opção: ")
+
+        if opcao == "1":
+            codigo = input("Digite o código do produto: ")
+            nome = input("Digite o nome do produto: ")
+            try:
+                quantidade = int(input("Digite a quantidade em estoque: "))
+                preco = float(input("Digite o preço por unidade: "))
+                produtos, mensagem = cadastrar_produto(produtos, codigo, nome, quantidade, preco)
+                print(mensagem)
+            except ValueError:
+                print("Entrada inválida! Por favor, insira valores válidos.")
+
+        elif opcao == "2":
+            produtos, vendas, mensagem = registrar_venda(produtos, vendas)
+            print(mensagem)
+
+        elif opcao == "3":
+            arquivo = input("Digite o nome do arquivo para salvar o relatório de vendas: ")
+            print(gerar_relatorio_vendas(vendas, arquivo))
+
+        elif opcao == "4":
+            arquivo = input("Digite o nome do arquivo para salvar o relatório de estoque: ")
+            print(gerar_relatorio_estoque(produtos, arquivo))
+        elif opcao == "5":
+            print(mostrar_produtos(produtos))
+        elif opcao == "6":
+            break
+        else:
+            print("Opção inválida, tente novamente.")
